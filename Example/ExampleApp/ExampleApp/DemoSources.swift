@@ -4,6 +4,7 @@ import Observation
 import SRTCore
 import SRTLibsrt
 import TelemetryHub
+import TelemetryHubGRPC
 import TelemetryHubLiveKit
 import TelemetryHubSRT
 
@@ -11,6 +12,11 @@ import TelemetryHubSRT
 @Observable
 final class DemoSources {
     private(set) var isPollingHTTP = false
+    private(set) var isPollingNetwork = false
+    private(set) var isProbingNetwork = false
+    private(set) var networkStatus: String?
+    private(set) var isProbingGRPC = false
+    private(set) var grpcStatus: String?
     private(set) var isWebSocketConnected = false
     private(set) var isSRTRunning = false
     private(set) var srtStatus: String?
@@ -30,6 +36,33 @@ final class DemoSources {
     @ObservationIgnored private var httpTask: Task<Void, Never>?
     @ObservationIgnored private var httpEndpointIndex = 0
 
+    @ObservationIgnored private let fullNetworkProbe = NetworkProbeSource(
+        sourceID: "network-probe-full",
+        configuration: NetworkProbeConfiguration(
+            latencySampleCount: 3,
+            uploadSize: 1_048_576,
+            rollingWindowSize: 10,
+            tags: ["provider": "cloudflare", "demo": "true", "profile": "full"]
+        )
+    )
+    @ObservationIgnored private let continuousNetworkProbe = NetworkProbeSource(
+        sourceID: "network-probe-continuous",
+        configuration: NetworkProbeConfiguration(
+            endpoints: .cloudflare(downloadSize: 524_288),
+            latencySampleCount: 3,
+            uploadSize: 131_072,
+            rollingWindowSize: 20,
+            tags: ["provider": "cloudflare", "demo": "true", "profile": "continuous"]
+        )
+    )
+    @ObservationIgnored private var networkProbeTask: Task<Void, Never>?
+
+    @ObservationIgnored private let grpcProbe = GRPCProbeSource(
+        configuration: GRPCProbeConfiguration(
+            tags: ["provider": "grpcbin", "demo": "true"]
+        )
+    )
+
     @ObservationIgnored private var webSocketTask: URLSessionWebSocketTask?
     @ObservationIgnored private var webSocketRecorder: SocketRecorder?
     @ObservationIgnored private var webSocketLoops: [Task<Void, Never>] = []
@@ -41,6 +74,12 @@ final class DemoSources {
 
     @ObservationIgnored private var room: Room?
     @ObservationIgnored private var liveKitObserver: LiveKitTelemetryObserver?
+
+    init() {
+        Telemetry.shared.add(source: fullNetworkProbe)
+        Telemetry.shared.add(source: continuousNetworkProbe)
+        Telemetry.shared.add(source: grpcProbe)
+    }
 
     private static let httpEndpoints = [
         "https://www.apple.com/library/test/success.html",
@@ -71,6 +110,78 @@ final class DemoSources {
         let session = httpSession
         Task {
             _ = try? await session.data(from: url)
+        }
+    }
+
+    func setNetworkPolling(_ enabled: Bool) {
+        guard enabled != isPollingNetwork else { return }
+        isPollingNetwork = enabled
+        if enabled {
+            networkProbeTask = Task(priority: .utility) { [weak self] in
+                while !Task.isCancelled {
+                    await self?.runNetworkProbe(self?.continuousNetworkProbe, profile: "Continuous sample")
+                    do {
+                        try await Task.sleep(for: .seconds(30))
+                    } catch {
+                        return
+                    }
+                }
+            }
+        } else {
+            networkProbeTask?.cancel()
+            networkProbeTask = nil
+        }
+    }
+
+    func probeNetworkNow() {
+        Task { [weak self] in
+            await self?.runNetworkProbe(self?.fullNetworkProbe, profile: "Full test")
+        }
+    }
+
+    private func runNetworkProbe(_ probe: NetworkProbeSource?, profile: String) async {
+        guard !isProbingNetwork, let probe else { return }
+        isProbingNetwork = true
+        networkStatus = "\(profile): measuring latency, download, and upload…"
+        defer { isProbingNetwork = false }
+
+        guard let result = await probe.probe() else {
+            networkStatus = "Probe is already running"
+            return
+        }
+        if result.succeeded {
+            let download = result.downloadBitsPerSecond.map(Self.bitrate) ?? "—"
+            let upload = result.uploadBitsPerSecond.map(Self.bitrate) ?? "—"
+            let latency = result.latencyMilliseconds.map { String(format: "%.0f ms", $0) } ?? "—"
+            networkStatus = "\(profile) · ↓ \(download)  ↑ \(upload)  \(latency)"
+        } else {
+            networkStatus = result.failures.joined(separator: "\n")
+        }
+    }
+
+    private static func bitrate(_ bitsPerSecond: Double) -> String {
+        if bitsPerSecond >= 1_000_000 {
+            return String(format: "%.1f Mbps", bitsPerSecond / 1_000_000)
+        }
+        return String(format: "%.0f Kbps", bitsPerSecond / 1_000)
+    }
+
+    func probeGRPCNow() {
+        guard !isProbingGRPC else { return }
+        isProbingGRPC = true
+        grpcStatus = "Calling grpcbin.GRPCBin/Empty…"
+        Task { [weak self] in
+            guard let self else { return }
+            defer { self.isProbingGRPC = false }
+            guard let result = await self.grpcProbe.probe() else {
+                self.grpcStatus = "gRPC probe is already running"
+                return
+            }
+            if let error = result.errorDescription {
+                self.grpcStatus = "Failed: \(error)"
+            } else {
+                self.grpcStatus = String(format: "Completed in %.0f ms · trace recorded", result.duration * 1_000)
+            }
         }
     }
 

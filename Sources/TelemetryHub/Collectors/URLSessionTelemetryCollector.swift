@@ -68,6 +68,15 @@ public final class URLSessionTelemetryCollector: NSObject, URLSessionTaskDelegat
         let bytesSent = Double(task.countOfBytesSent)
         let bytesReceived = Double(task.countOfBytesReceived)
         let duration = duration ?? 0
+        let uploadBitrate = duration > 0 ? bytesSent * 8 / duration : nil
+        let downloadBitrate = duration > 0 ? bytesReceived * 8 / duration : nil
+
+        var measurements: [String: Double] = [
+            "bytes.sent": bytesSent,
+            "bytes.received": bytesReceived,
+        ]
+        measurements["bitrate.upload"] = uploadBitrate
+        measurements["bitrate.download"] = downloadBitrate
 
         hub.record(TelemetryTrace(
             name: name,
@@ -76,15 +85,18 @@ public final class URLSessionTelemetryCollector: NSObject, URLSessionTaskDelegat
             duration: duration,
             status: status,
             tags: tags,
-            measurements: [
-                "bytes.sent": bytesSent,
-                "bytes.received": bytesReceived,
-            ]
+            measurements: measurements
         ))
         hub.histogram("net.http.duration", duration * 1000, unit: .milliseconds, tags: tags)
         hub.counter("net.http.count", tags: tags)
         hub.counter("net.http.bytes.sent", by: bytesSent, unit: .bytes, tags: tags)
         hub.counter("net.http.bytes.received", by: bytesReceived, unit: .bytes, tags: tags)
+        if let uploadBitrate, bytesSent > 0 {
+            hub.gauge("net.http.throughput.upload", uploadBitrate, unit: .bitsPerSecond, tags: tags)
+        }
+        if let downloadBitrate, bytesReceived > 0 {
+            hub.gauge("net.http.throughput.download", downloadBitrate, unit: .bitsPerSecond, tags: tags)
+        }
         if case .error(let reason) = status {
             hub.counter("net.http.failure.count", tags: tags)
             hub.event("net.http.failure", message: "\(name): \(reason)", level: .error, tags: tags)

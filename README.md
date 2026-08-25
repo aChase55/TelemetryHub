@@ -8,7 +8,7 @@ Telemetry collection for Swift apps: one pipeline for metrics, events, and reque
 |---|---|---|
 | `TelemetryHub` | Core pipeline: `Telemetry` hub, signal model, recorders, built-in collectors (connectivity, URLSession, system stats), `MetricsStore` for UI | none |
 | `TelemetryHubNIO` | SwiftNIO channel handlers for TCP, UDP datagram, and WebSocket frame metrics | swift-nio |
-| `TelemetryHubGRPC` | grpc-swift-2 client interceptor (per-RPC duration, status, failures) | grpc-swift-2 (GRPCCore) |
+| `TelemetryHubGRPC` | grpc-swift-2 client interceptor and real unary probe source (per-RPC duration, status, failures) | grpc-swift-2, grpc-swift-nio-transport |
 | `TelemetryHubLiveKit` | WebRTC stats via LiveKit rooms/tracks (bitrate, RTT, loss, jitter, fps, freezes) | livekit/client-sdk-swift |
 | `TelemetryHubSRT` | SRT transport stats via SRTKit (Saver SDK) | SRTKit (local, `SRTCore` product) |
 | `TelemetryHubSentry` | Exporter mapping signals to Sentry metrics, logs, breadcrumbs, and transactions | sentry-cocoa |
@@ -46,7 +46,7 @@ Recorders map domain-specific measurements onto canonical metric names so every 
 
 - `StreamSessionRecorder` — media streams (WebRTC, SRT, custom): feed it `StreamStatsSample`s, get `stream.bitrate.out`, `stream.rtt`, `stream.packets.loss`, `stream.fps`, … plus `stream.state` events.
 - `SocketRecorder` — sockets (TCP/UDP/WebSocket): byte/message counters plus derived `socket.throughput.in/out` gauges on a 1 s window.
-- `NetworkRequestRecorder` — request/response calls: `begin(name:)` → `end(token:status:)` emits a trace, duration histogram, and failure counters.
+- `NetworkRequestRecorder` — request/response calls: `begin(name:)` → `end(token:status:)` emits a trace, duration histogram, transfer throughput/bytes, and failure counters.
 
 Adapters below are thin wrappers around these; anything they don't cover you can record directly.
 
@@ -63,7 +63,25 @@ let collector = URLSessionTelemetryCollector()
 let session = URLSession(configuration: .default, delegate: collector, delegateQueue: nil)
 ```
 
-Emits per request: `net.http.duration`, `net.http.ttfb`, `net.http.dns`, `net.http.connect`, `net.http.tls`, byte counters, failure events, and a `TelemetryTrace`. If your session already has a delegate, forward `urlSession(_:task:didFinishCollecting:)` and `urlSession(_:task:didCompleteWithError:)` to a collector instance.
+Emits per request: `net.http.duration`, `net.http.ttfb`, `net.http.dns`, `net.http.connect`, `net.http.tls`, upload/download throughput, byte counters, failure events, and a `TelemetryTrace`. If your session already has a delegate, forward `urlSession(_:task:didFinishCollecting:)` and `urlSession(_:task:didCompleteWithError:)` to a collector instance.
+
+### Active network probe
+
+`NetworkProbeSource` makes configurable real HTTP requests and records latency, jitter, download/upload bitrate, rolling averages, transfer duration/bytes, and probe failures. Automatic runs are opt-in so adding the source does not silently consume bandwidth.
+
+```swift
+let probe = NetworkProbeSource(configuration: NetworkProbeConfiguration(
+    interval: 60,             // nil for manual-only
+    latencySampleCount: 3,
+    uploadSize: 1_048_576
+))
+hub.add(source: probe)
+
+// A user-initiated test can also return its measurements directly.
+let result = await probe.probe()
+```
+
+The defaults use Cloudflare Speed with a 4 MiB download and 1 MiB upload. For production, prefer `NetworkProbeEndpoints` backed by infrastructure you control so the measurement reflects your actual service path and does not depend on a public endpoint.
 
 ### System stats
 
@@ -112,6 +130,14 @@ let client = GRPCClient(
 
 Records `/package.Service/Method` traces with duration and status code (`net.grpc.duration`, `net.grpc.count`, `net.grpc.failure.count`). Durations cover the full RPC including response-body consumption. On grpc-swift v1 (maintenance mode) use `NetworkRequestRecorder(kind: .grpcCall)` from a v1 interceptor in your app instead.
 
+For a directly runnable source, `GRPCProbeSource` makes a real unary call through the same interceptor. It is manual-only by default and targets grpcbin's public TLS endpoint for demonstration; configure an endpoint you operate in production.
+
+```swift
+let probe = GRPCProbeSource()
+Telemetry.shared.add(source: probe)
+let result = await probe.probe()
+```
+
 ### Raw sockets via SwiftNIO (`TelemetryHubNIO`)
 
 Add a handler to any pipeline:
@@ -154,14 +180,16 @@ import TelemetryHubUI
 MetricsPanel()
 ```
 
-`MetricsPanel` is a self-contained `NavigationStack`; use `MetricsPanelView` to embed in your own navigation. Grouped live series with sparklines, per-metric detail charts, recent events, and request lists — all reading `hub.store`.
+`MetricsPanel` is a self-contained `NavigationStack`; use `MetricsPanelView` to embed in your own navigation. It includes a live network overview (download, upload, latency, and jitter), grouped series with sparklines, averages and p95 values in metric detail, recent events, and request lists — all reading `hub.store`.
 
 ## Example
 
 `Example/ExampleApp` is a runnable iOS/macOS app showing the metrics panel fed by real sources, toggled from the Sources screen:
 
 - Connectivity and system stats run from launch.
+- Network probe: an on-demand full latency/download/upload test or lightweight 30-second continuous sampling against Cloudflare Speed.
 - HTTP: real requests (one-shot or every 5 s) through an instrumented `URLSession`.
+- gRPC: a real TLS unary call to grpcbin through `TelemetryClientInterceptor`, producing a completed RPC trace and gRPC metrics.
 - WebSocket: a live connection to `wss://echo.websocket.org` with echoed messages and ping-derived RTT.
 - SRT: an in-process loopback pair of `LibsrtTransport`s (listener + caller over `127.0.0.1:9710`) pumping ~100 KB/s of real SRT traffic, observed by `SRTTelemetryObserver`.
 - LiveKit: paste a server URL + token to join a real room; camera/microphone publish toggles feed live WebRTC stats through `LiveKitTelemetryObserver`.

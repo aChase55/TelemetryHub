@@ -175,9 +175,25 @@ import Testing
         let b = MetricsStore.seriesID(name: "n", tags: ["b": "2", "a": "1"])
         #expect(a == b)
     }
+
+    @Test func seriesCalculatesAverageAndP95() {
+        let store = MetricsStore()
+        store.ingest((1...20).map {
+            .metric(TelemetryMetric(name: "net.latency", kind: .histogram, value: Double($0)))
+        })
+        let series = store.series["net.latency"]
+        #expect(series?.averageValue == 10.5)
+        #expect(series?.p95Value == 19)
+    }
 }
 
 @Suite struct RecorderTests {
+    @Test func cloudflareProbeEndpointUsesRequestedDownloadSize() {
+        let endpoints = NetworkProbeEndpoints.cloudflare(downloadSize: 524_288)
+        let components = URLComponents(url: endpoints.download, resolvingAgainstBaseURL: false)
+        #expect(components?.queryItems?.first(where: { $0.name == "bytes" })?.value == "524288")
+    }
+
     @Test func networkRequestRecorderEmitsTraceAndMetrics() async {
         let hub = Telemetry(configuration: TelemetryConfiguration(flushInterval: 60))
         let exporter = InMemoryExporter()
@@ -193,8 +209,12 @@ import Testing
         #expect(trace?.kind == .grpcCall)
         #expect(trace?.status == .ok)
         #expect(trace?.measurements["bytes.sent"] == 100)
+        #expect((trace?.measurements["bitrate.upload"] ?? 0) > 0)
+        #expect((trace?.measurements["bitrate.download"] ?? 0) > 0)
         #expect(exporter.metrics.contains { $0.name == "net.grpc.duration" })
         #expect(exporter.metrics.contains { $0.name == "net.grpc.count" })
+        #expect(exporter.metrics.contains { $0.name == "net.grpc.throughput.upload" })
+        #expect(exporter.metrics.contains { $0.name == "net.grpc.throughput.download" })
         #expect(!exporter.metrics.contains { $0.name == "net.grpc.failure.count" })
     }
 

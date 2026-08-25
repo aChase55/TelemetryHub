@@ -24,6 +24,12 @@ struct SeriesDetailView: View {
                     LabeledContent("Current", value: ValueFormatting.format(series.lastValue, unit: series.unit))
                     LabeledContent("Minimum", value: ValueFormatting.format(series.minValue, unit: series.unit))
                     LabeledContent("Maximum", value: ValueFormatting.format(series.maxValue, unit: series.unit))
+                    if series.kind != .counter {
+                        LabeledContent("Average", value: ValueFormatting.format(series.averageValue, unit: series.unit))
+                    }
+                    if series.kind == .histogram {
+                        LabeledContent("95th Percentile", value: ValueFormatting.format(series.p95Value, unit: series.unit))
+                    }
                     LabeledContent("Samples", value: String(series.points.count))
                     LabeledContent("Updated") {
                         Text(series.lastUpdated, format: .dateTime.hour().minute().second())

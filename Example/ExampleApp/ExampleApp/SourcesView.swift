@@ -5,6 +5,25 @@ struct SourcesView: View {
 
     var body: some View {
         Form {
+            Section("Network Probe") {
+                Toggle("Continuous Sampling", isOn: Binding(
+                    get: { sources.isPollingNetwork },
+                    set: { sources.setNetworkPolling($0) }
+                ))
+                Button(sources.isProbingNetwork ? "Testing…" : "Run Speed Test") {
+                    sources.probeNetworkNow()
+                }
+                .disabled(sources.isProbingNetwork)
+                LabeledContent("Service", value: "Cloudflare Speed")
+                Text("The full test transfers 4 MB down and 1 MB up. Continuous sampling runs every 30 seconds with lighter 512 KB / 128 KB transfers to reduce CPU and data use.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if let status = sources.networkStatus {
+                    Text(status)
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
             Section("HTTP") {
                 Toggle("Periodic Requests", isOn: Binding(
                     get: { sources.isPollingHTTP },
@@ -12,6 +31,21 @@ struct SourcesView: View {
                 ))
                 Button("Request Now") {
                     sources.requestNow()
+                }
+            }
+            Section("gRPC") {
+                Button(sources.isProbingGRPC ? "Calling…" : "Run gRPC Probe") {
+                    sources.probeGRPCNow()
+                }
+                .disabled(sources.isProbingGRPC)
+                LabeledContent("Endpoint", value: "grpcb.in:9001")
+                Text("Makes a real TLS unary call and records its full lifecycle as a gRPC trace.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if let status = sources.grpcStatus {
+                    Text(status)
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
             }
             Section("WebSocket") {

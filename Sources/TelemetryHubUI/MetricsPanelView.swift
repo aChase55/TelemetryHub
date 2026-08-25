@@ -1,4 +1,3 @@
-import Charts
 import SwiftUI
 import TelemetryHub
 
@@ -21,6 +20,11 @@ public struct MetricsPanelView: View {
                     systemImage: "waveform.path.ecg",
                     description: Text("Telemetry appears here once sources start reporting.")
                 )
+            }
+            if NetworkOverviewView.hasData(in: store) {
+                Section("Network Overview") {
+                    NetworkOverviewView(store: store)
+                }
             }
             ForEach(store.groupedSeries, id: \.group) { group in
                 Section(group.group.capitalized) {
@@ -67,6 +71,58 @@ public struct MetricsPanelView: View {
     }
 }
 
+private struct NetworkOverviewView: View {
+    let store: MetricsStore
+
+    static func hasData(in store: MetricsStore) -> Bool {
+        store.series.values.contains { $0.name.hasPrefix("net.") || $0.name.hasPrefix("socket.") || $0.name.hasPrefix("stream.") }
+    }
+
+    var body: some View {
+        if let series = latest(named: [
+            "net.probe.download.bitrate.average",
+            "net.probe.download.bitrate",
+            "net.http.throughput.download",
+            "socket.throughput.in",
+            "stream.bitrate.in",
+        ]) {
+            LabeledContent("Download", value: ValueFormatting.format(series.lastValue, unit: series.unit))
+        }
+        if let series = latest(named: [
+            "net.probe.upload.bitrate.average",
+            "net.probe.upload.bitrate",
+            "net.http.throughput.upload",
+            "socket.throughput.out",
+            "stream.bitrate.out",
+        ]) {
+            LabeledContent("Upload", value: ValueFormatting.format(series.lastValue, unit: series.unit))
+        }
+        if let series = latest(named: [
+            "net.probe.latency.rolling_average",
+            "net.probe.latency.average",
+            "socket.rtt",
+            "stream.rtt",
+            "net.http.ttfb",
+        ]) {
+            LabeledContent("Latency", value: ValueFormatting.format(series.lastValue, unit: series.unit))
+        }
+        if let series = latest(named: ["net.probe.latency.jitter", "stream.jitter"]) {
+            LabeledContent("Jitter", value: ValueFormatting.format(series.lastValue, unit: series.unit))
+        }
+    }
+
+    private func latest(named names: [String]) -> MetricsStore.Series? {
+        for name in names {
+            if let series = store.series.values
+                .filter({ $0.name == name })
+                .max(by: { $0.lastUpdated < $1.lastUpdated }) {
+                return series
+            }
+        }
+        return nil
+    }
+}
+
 enum MetricsPanelDestination: Hashable {
     case series(String)
     case events
@@ -92,11 +148,8 @@ struct SeriesRow: View {
 
     var body: some View {
         LabeledContent {
-            HStack(spacing: 12) {
-                SparklineView(points: series.points.suffix(60))
-                Text(ValueFormatting.format(series.lastValue, unit: series.unit))
-                    .monospacedDigit()
-            }
+            Text(ValueFormatting.format(series.lastValue, unit: series.unit))
+                .monospacedDigit()
         } label: {
             Text(shortName)
             if !displayTags.isEmpty {
@@ -116,25 +169,6 @@ struct SeriesRow: View {
             .sorted { $0.key < $1.key }
             .map(\.value)
             .joined(separator: " · ")
-    }
-}
-
-struct SparklineView: View {
-    let points: ArraySlice<MetricsStore.Point>
-
-    var body: some View {
-        if points.count > 1 {
-            Chart(Array(points.enumerated()), id: \.offset) { _, point in
-                LineMark(
-                    x: .value("Time", point.timestamp),
-                    y: .value("Value", point.value)
-                )
-            }
-            .chartXAxis(.hidden)
-            .chartYAxis(.hidden)
-            .chartLegend(.hidden)
-            .frame(width: 64, height: 20)
-        }
     }
 }
 

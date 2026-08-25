@@ -30,6 +30,18 @@ public final class MetricsStore {
         public var maxValue: Double {
             points.lazy.map(\.value).max() ?? lastValue
         }
+
+        public var averageValue: Double {
+            guard !points.isEmpty else { return lastValue }
+            return points.reduce(0) { $0 + $1.value } / Double(points.count)
+        }
+
+        public var p95Value: Double {
+            guard !points.isEmpty else { return lastValue }
+            let sorted = points.lazy.map(\.value).sorted()
+            let index = min(Int((Double(sorted.count) * 0.95).rounded(.up)) - 1, sorted.count - 1)
+            return sorted[max(0, index)]
+        }
     }
 
     public private(set) var series: [String: Series] = [:]

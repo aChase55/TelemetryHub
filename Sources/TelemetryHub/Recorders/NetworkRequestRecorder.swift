@@ -5,12 +5,14 @@ public struct RequestToken: Sendable {
     public let name: String
     public let start: Date
     let tags: [String: String]
+    let monotonicStart: ContinuousClock.Instant
 
     init(name: String, tags: [String: String]) {
         self.id = UUID()
         self.name = name
         self.start = Date()
         self.tags = tags
+        self.monotonicStart = .now
     }
 }
 
@@ -43,7 +45,7 @@ public final class NetworkRequestRecorder: Sendable {
         bytesReceived: Int? = nil,
         tags: [String: String] = [:]
     ) {
-        let duration = Date().timeIntervalSince(token.start)
+        let duration = Self.seconds(token.monotonicStart.duration(to: .now))
         var allTags = token.tags.merging(tags) { _, new in new }
         allTags["request"] = token.name
 
@@ -51,10 +53,20 @@ public final class NetworkRequestRecorder: Sendable {
         if let bytesSent {
             measurements["bytes.sent"] = Double(bytesSent)
             hub.counter("\(namePrefix).bytes.sent", by: Double(bytesSent), unit: .bytes, tags: allTags)
+            if duration > 0 {
+                let bitrate = Double(bytesSent) * 8 / duration
+                measurements["bitrate.upload"] = bitrate
+                hub.gauge("\(namePrefix).throughput.upload", bitrate, unit: .bitsPerSecond, tags: allTags)
+            }
         }
         if let bytesReceived {
             measurements["bytes.received"] = Double(bytesReceived)
             hub.counter("\(namePrefix).bytes.received", by: Double(bytesReceived), unit: .bytes, tags: allTags)
+            if duration > 0 {
+                let bitrate = Double(bytesReceived) * 8 / duration
+                measurements["bitrate.download"] = bitrate
+                hub.gauge("\(namePrefix).throughput.download", bitrate, unit: .bitsPerSecond, tags: allTags)
+            }
         }
 
         hub.record(TelemetryTrace(
@@ -87,5 +99,10 @@ public final class NetworkRequestRecorder: Sendable {
         case .streamSession: "stream"
         case .custom: "net.request"
         }
+    }
+
+    private static func seconds(_ duration: Duration) -> TimeInterval {
+        let components = duration.components
+        return Double(components.seconds) + Double(components.attoseconds) / 1_000_000_000_000_000_000
     }
 }

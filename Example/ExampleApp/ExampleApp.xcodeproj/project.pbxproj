@@ -13,6 +13,7 @@
 		5C73A296303CC01300F141EA /* TelemetryHubLiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C73A29A303CC01300F141EA /* TelemetryHubLiveKit */; };
 		5C73A297303CC01300F141EA /* SRTLibsrt in Frameworks */ = {isa = PBXBuildFile; productRef = 5C73A29B303CC01300F141EA /* SRTLibsrt */; };
 		5C73A298303CC01300F141EA /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C73A29C303CC01300F141EA /* LiveKit */; };
+		5C73A2A0303CC01300F141EA /* TelemetryHubGRPC in Frameworks */ = {isa = PBXBuildFile; productRef = 5C73A2A1303CC01300F141EA /* TelemetryHubGRPC */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +68,7 @@
 				5C73A296303CC01300F141EA /* TelemetryHubLiveKit in Frameworks */,
 				5C73A297303CC01300F141EA /* SRTLibsrt in Frameworks */,
 				5C73A298303CC01300F141EA /* LiveKit in Frameworks */,
+				5C73A2A0303CC01300F141EA /* TelemetryHubGRPC in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,6 +135,7 @@
 				5C73A29A303CC01300F141EA /* TelemetryHubLiveKit */,
 				5C73A29B303CC01300F141EA /* SRTLibsrt */,
 				5C73A29C303CC01300F141EA /* LiveKit */,
+				5C73A2A1303CC01300F141EA /* TelemetryHubGRPC */,
 			);
 			productName = ExampleApp;
 			productReference = 5C73A25C303CC01000F141EA /* ExampleApp.app */;
@@ -218,7 +221,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5C73A292303CC01300F141EA /* XCLocalSwiftPackageReference "../.." */,
-				5C73A29D303CC01300F141EA /* XCLocalSwiftPackageReference "../../../saver/sdk/swift/SRTKit" */,
+				5C73A29D303CC01300F141EA /* XCLocalSwiftPackageReference "../../../SRTKit" */,
 				5C73A29E303CC01300F141EA /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -418,7 +421,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = QJRDX8WN9W;
+				DEVELOPMENT_TEAM = D45W3T5M4N;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
@@ -440,10 +443,10 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vast.crew.ExampleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -468,7 +471,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = QJRDX8WN9W;
+				DEVELOPMENT_TEAM = D45W3T5M4N;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
@@ -490,10 +493,10 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 26.4;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.vast.crew.ExampleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -659,9 +662,9 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../..;
 		};
-		5C73A29D303CC01300F141EA /* XCLocalSwiftPackageReference "../../../saver/sdk/swift/SRTKit" */ = {
+		5C73A29D303CC01300F141EA /* XCLocalSwiftPackageReference "../../../SRTKit" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../../saver/sdk/swift/SRTKit;
+			relativePath = ../../../SRTKit;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -701,6 +704,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5C73A29E303CC01300F141EA /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
 			productName = LiveKit;
+		};
+		5C73A2A1303CC01300F141EA /* TelemetryHubGRPC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TelemetryHubGRPC;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

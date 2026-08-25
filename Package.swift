@@ -20,8 +20,9 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/grpc/grpc-swift-2.git", from: "2.4.2"),
+        .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.0.0"),
         .package(url: "https://github.com/livekit/client-sdk-swift.git", from: "2.16.0"),
-        .package(path: "../saver/sdk/swift/SRTKit"),
+        .package(path: "../SRTKit"),
         .package(url: "https://github.com/getsentry/sentry-cocoa.git", from: "9.26.0"),
     ],
     targets: [
@@ -41,6 +42,7 @@ let package = Package(
             dependencies: [
                 "TelemetryHub",
                 .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCNIOTransportHTTP2TransportServices", package: "grpc-swift-nio-transport"),
             ]
         ),
         .target(
@@ -74,6 +76,15 @@ let package = Package(
         .testTarget(
             name: "TelemetryHubTests",
             dependencies: ["TelemetryHub"]
+        ),
+        .testTarget(
+            name: "TelemetryHubGRPCTests",
+            dependencies: [
+                "TelemetryHub",
+                "TelemetryHubGRPC",
+                .product(name: "GRPCCore", package: "grpc-swift-2"),
+                .product(name: "GRPCInProcessTransport", package: "grpc-swift-2"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

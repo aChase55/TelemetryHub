@@ -23,14 +23,31 @@ final class ExampleAppUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testSourcesExposeGRPCProbe() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        app.buttons["Sources"].tap()
+        XCTAssertTrue(app.navigationBars["Sources"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["Run gRPC Probe"].exists)
+        let endpoint = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "grpcb.in:9001")
+        ).firstMatch
+        XCTAssertTrue(endpoint.exists)
+
+        // Set this in the scheme's Test action environment to exercise the public endpoint.
+        guard ProcessInfo.processInfo.environment["RUN_LIVE_GRPC_PROBE"] == "1" else { return }
+        app.buttons["Run gRPC Probe"].tap()
+        let recorded = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "trace recorded")
+        ).firstMatch
+        XCTAssertTrue(recorded.waitForExistence(timeout: 15))
+
+        app.navigationBars["Sources"].buttons.firstMatch.tap()
+        let trace = app.staticTexts.containing(
+            NSPredicate(format: "label CONTAINS %@", "grpcbin.GRPCBin/Empty")
+        ).firstMatch
+        XCTAssertTrue(trace.waitForExistence(timeout: 3))
     }
 
     @MainActor
